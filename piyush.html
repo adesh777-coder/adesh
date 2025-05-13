@@ -1,0 +1,202 @@
+<?php
+// Simulating basic PHP functionality
+session_start();
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Process form data
+    $_SESSION['order_id'] = uniqid();
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodHub - Food Delivery</title>
+    <style>
+        /* CSS */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+        }
+
+        .header {
+            background-color: #2c3e50;
+            padding: 1rem;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e67e22;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+        }
+
+        .page-section {
+            display: none;
+            padding: 20px;
+        }
+
+        .active-page {
+            display: block;
+        }
+
+        .restaurant-card {
+            background: white;
+            border-radius: 10px;
+            margin: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .menu-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+        }
+
+        .btn {
+            background-color: #e67e22;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .cart {
+            position: fixed;
+            right: 20px;
+            top: 80px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">FoodHub</div>
+        <nav class="nav-links">
+            <a href="#" onclick="showPage('home')">Home</a>
+            <a href="#" onclick="showPage('restaurants')">Restaurants</a>
+            <a href="#" onclick="showPage('cart')">Cart (<span id="cart-count">0</span>)</a>
+        </nav>
+    </div>
+
+    <!-- Home Page -->
+    <div id="home" class="page-section active-page">
+        <h2>Welcome to FoodHub</h2>
+        <div class="search-bar">
+            <input type="text" placeholder="Search restaurants...">
+            <button class="btn">Search</button>
+        </div>
+        <div class="featured-restaurants">
+            <div class="restaurant-card">
+                <h3>Italian Bistro</h3>
+                <p>⭐ 4.3 (500+) • Italian • $$</p>
+            </div>
+            <div class="restaurant-card">
+                <h3>Burger Palace</h3>
+                <p>⭐ 4.5 (1000+) • American • $</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Restaurants Page -->
+    <div id="restaurants" class="page-section">
+        <h2>All Restaurants</h2>
+        <div class="restaurant-list" id="restaurantList"></div>
+    </div>
+
+    <!-- Cart Page -->
+    <div id="cart" class="page-section">
+        <h2>Your Cart</h2>
+        <div id="cart-items"></div>
+        <button class="btn" onclick="showPage('checkout')">Checkout</button>
+    </div>
+
+    <!-- Checkout Page -->
+    <div id="checkout" class="page-section">
+        <h2>Checkout</h2>
+        <form method="POST">
+            <input type="text" name="name" placeholder="Name" required>
+            <input type="address" name="address" placeholder="Address" required>
+            <button type="submit" class="btn">Place Order</button>
+        </form>
+    </div>
+
+    <?php if(isset($_SESSION['order_id'])): ?>
+    <div id="order-status" class="page-section active-page">
+        <h2>Order Placed Successfully!</h2>
+        <p>Order ID: <?php echo $_SESSION['order_id']; ?></p>
+        <p>Estimated Delivery Time: 45 minutes</p>
+    </div>
+    <?php 
+        unset($_SESSION['order_id']);
+    endif; ?>
+
+    <script>
+        // JavaScript
+        let cartItems = JSON.parse(localStorage.getItem('cart')) || [];
+        
+        function showPage(pageId) {
+            document.querySelectorAll('.page-section').forEach(page => {
+                page.classList.remove('active-page');
+            });
+            document.getElementById(pageId).classList.add('active-page');
+            updateCartCount();
+        }
+
+        function addToCart(item) {
+            cartItems.push(item);
+            localStorage.setItem('cart', JSON.stringify(cartItems));
+            updateCartCount();
+        }
+
+        function updateCartCount() {
+            document.getElementById('cart-count').textContent = cartItems.length;
+        }
+
+        // Restaurant data
+        const restaurants = [
+            { name: 'Italian Bistro', cuisine: 'Italian', rating: '4.3' },
+            { name: 'Burger Palace', cuisine: 'American', rating: '4.5' }
+        ];
+
+        // Populate restaurants
+        const restaurantList = document.getElementById('restaurantList');
+        restaurants.forEach(restaurant => {
+            const div = document.createElement('div');
+            div.className = 'restaurant-card';
+            div.innerHTML = `
+                <h3>${restaurant.name}</h3>
+                <p>⭐ ${restaurant.rating} • ${restaurant.cuisine}</p>
+                <button class="btn" onclick="showPage('menu')">View Menu</button>
+            `;
+            restaurantList.appendChild(div);
+        });
+
+        // Initialize cart
+        updateCartCount();
+    </script>
+</body>
+</html>
