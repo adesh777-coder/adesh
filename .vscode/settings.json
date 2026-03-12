@@ -1,0 +1,7 @@
+{
+  "github.copilot.chat.languageModel": "claude-opus-4",
+  "github.copilot.enable": {
+    "*": true
+  },
+  "chat.agent.enabled": true
+}
