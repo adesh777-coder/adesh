@@ -1,0 +1,13 @@
+{
+  "github.copilot.chat.languageModel": "claude-opus-4",
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": true,
+    "markdown": true,
+    "html": true,
+    "php": true,
+    "javascript": true,
+    "css": true
+  },
+  "chat.agent.enabled": true
+}
