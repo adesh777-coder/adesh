@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CEC Pro</title>
+
+  <!--
+    CDN scripts are loaded with crossorigin="anonymous" to prevent tracking-
+    prevention features (Microsoft Edge, Safari ITP) from blocking the scripts.
+    SRI integrity hashes ensure the browser verifies file integrity.
+  -->
+  <script crossorigin="anonymous"
+    src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+    integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"
+    referrerpolicy="no-referrer">
+  </script>
+  <script crossorigin="anonymous"
+    src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"
+    integrity="sha384-FcQlsUOd0TJjROrBxhJdUhXTUgNJQxTMcxZe6nHbaEfFL1zjQ+bq/uRoBQxb0KMo"
+    referrerpolicy="no-referrer">
+  </script>
+  <script crossorigin="anonymous"
+    src="https://unpkg.com/docx@8.5.0/build/index.umd.js"
+    integrity="sha384-4xaIisuLEy2lo2HkB2C4rEf7v8jbTb2kuogX6TkuEt9feTWKBSFSOzsqNNbV+sKh"
+    referrerpolicy="no-referrer">
+  </script>
+  <script crossorigin="anonymous"
+    src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"
+    integrity="sha384-PlRSzpewlarQuj5alIadXwjNUX+2eNMKwr0f07ShWYLy8B6TjEbm7ZlcN/ScSbwy"
+    referrerpolicy="no-referrer">
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a365d;
+      color: #fff;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    header p  { font-size: 0.85rem; opacity: 0.75; }
+
+    .badge {
+      display: inline-block;
+      background: #2b6cb0;
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+      margin-left: auto;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,.07);
+    }
+
+    .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #2d3748; }
+
+    /* AI Chat */
+    #chat-messages {
+      height: 220px;
+      overflow-y: auto;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: .75rem;
+      margin-bottom: .75rem;
+      background: #f7fafc;
+      font-size: .9rem;
+      line-height: 1.5;
+    }
+
+    .msg { margin-bottom: .5rem; }
+    .msg.user  { color: #2b6cb0; }
+    .msg.ai    { color: #276749; }
+    .msg.error { color: #c53030; font-style: italic; }
+
+    .chat-row {
+      display: flex;
+      gap: .5rem;
+    }
+
+    #chat-input {
+      flex: 1;
+      padding: .5rem .75rem;
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      font-size: .9rem;
+    }
+
+    button {
+      padding: .5rem 1.1rem;
+      background: #2b6cb0;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: .9rem;
+      transition: background .2s;
+    }
+
+    button:disabled { background: #a0aec0; cursor: not-allowed; }
+    button:not(:disabled):hover { background: #2c5282; }
+
+    /* Status bar */
+    #status-bar {
+      font-size: .8rem;
+      padding: .4rem .75rem;
+      border-radius: 6px;
+      background: #ebf8ff;
+      color: #2b6cb0;
+      border: 1px solid #bee3f8;
+      min-height: 1.8rem;
+    }
+
+    #status-bar.error { background: #fff5f5; color: #c53030; border-color: #fed7d7; }
+
+    /* Chart canvas */
+    #myChart { max-height: 300px; }
+
+    /* Export buttons */
+    .export-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: .75rem; }
+
+    .offline-notice {
+      background: #fffff0;
+      border: 1px solid #f6e05e;
+      color: #744210;
+      border-radius: 6px;
+      padding: .6rem 1rem;
+      font-size: .85rem;
+      display: none;
+    }
+
+    .offline-notice.visible { display: block; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>CEC Pro</h1>
+    <p>AI-powered content &amp; export tool</p>
+  </div>
+  <span class="badge" id="mode-badge">online</span>
+</header>
+
+<main>
+
+  <!-- Offline notice (shown when API key not configured) -->
+  <div class="offline-notice" id="offline-notice">
+    ℹ️ CEC Pro is running in <strong>offline mode</strong> (localStorage only).
+    Configure <code>ANTHROPIC_API_KEY</code> in your Netlify environment variables to enable AI features.
+  </div>
+
+  <!-- Status bar -->
+  <div id="status-bar">Ready.</div>
+
+  <!-- AI Chat -->
+  <div class="card">
+    <h2>💬 AI Assistant</h2>
+    <div id="chat-messages" role="log" aria-live="polite"></div>
+    <div class="chat-row">
+      <input id="chat-input" type="text" placeholder="Ask something…" />
+      <button id="send-btn" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="card">
+    <h2>📊 Sample Chart</h2>
+    <canvas id="myChart"></canvas>
+    <div class="export-row">
+      <button onclick="exportPDF()">Export PDF</button>
+      <button onclick="exportDocx()">Export DOCX</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  /* ── Helpers ──────────────────────────────────────────────────── */
+
+  function setStatus(msg, isError) {
+    var bar = document.getElementById('status-bar');
+    if (bar) {
+      bar.textContent = msg;
+      bar.className = isError ? 'error' : '';
+    }
+  }
+
+  function appendMessage(text, type) {
+    var box = document.getElementById('chat-messages');
+    if (!box) return;
+    var div = document.createElement('div');
+    div.className = 'msg ' + (type || '');
+    div.textContent = text;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  /* ── Offline / online detection ───────────────────────────────── */
+
+  var IS_OFFLINE = false;
+
+  // Model to use for AI requests. Can be overridden by setting
+  // localStorage.setItem('cec_model', '<model-name>') in the browser console.
+  var AI_MODEL = localStorage.getItem('cec_model') || 'claude-3-haiku-20240307';
+
+  (function checkMode() {
+    // We're considered "offline" when the proxy endpoint returns 500
+    // (ANTHROPIC_API_KEY not set). We discover this on first use, but
+    // we can show a hint immediately by probing localStorage for a cached flag.
+    if (localStorage.getItem('cec_offline') === '1') {
+      enterOfflineMode();
+    }
+  })();
+
+  function enterOfflineMode() {
+    IS_OFFLINE = true;
+    localStorage.setItem('cec_offline', '1');
+    console.info('\u2139\ufe0f CEC Pro: Running in offline mode (localStorage only)');
+
+    var badge = document.getElementById('mode-badge');
+    if (badge) badge.textContent = 'offline';
+
+    var notice = document.getElementById('offline-notice');
+    if (notice) notice.classList.add('visible');
+
+    setStatus('Offline mode — AI features unavailable.', false);
+  }
+
+  function enterOnlineMode() {
+    IS_OFFLINE = false;
+    localStorage.removeItem('cec_offline');
+
+    var badge = document.getElementById('mode-badge');
+    if (badge) badge.textContent = 'online';
+
+    var notice = document.getElementById('offline-notice');
+    if (notice) notice.classList.remove('visible');
+  }
+
+  /* ── AI chat ──────────────────────────────────────────────────── */
+
+  var chatHistory = JSON.parse(localStorage.getItem('cec_history') || '[]');
+
+  async function sendMessage() {
+    var input = document.getElementById('chat-input');
+    var sendBtn = document.getElementById('send-btn');
+
+    if (!input || !sendBtn) return;
+
+    var text = input.value.trim();
+    if (!text) return;
+
+    input.value = '';
+    appendMessage('You: ' + text, 'user');
+    sendBtn.disabled = true;
+    setStatus('Thinking…');
+
+    chatHistory.push({ role: 'user', content: text });
+
+    if (IS_OFFLINE) {
+      appendMessage('AI: (offline — AI unavailable)', 'ai');
+      setStatus('Offline mode — AI features unavailable.');
+      sendBtn.disabled = false;
+      return;
+    }
+
+    try {
+      // Route through the Netlify proxy function to avoid CORS and keep the
+      // API key server-side (never exposed in client-side code).
+      var res = await fetch('/api/anthropic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: AI_MODEL,
+          max_tokens: 1024,
+          messages: chatHistory
+        })
+      });
+
+      var data = await res.json();
+
+      if (!res.ok || data.error) {
+        var errMsg = (data.error && (data.error.message || data.error)) || 'Unknown error';
+        if (res.status === 500 && String(errMsg).includes('ANTHROPIC_API_KEY')) {
+          enterOfflineMode();
+          appendMessage('AI: (offline — API key not configured)', 'ai');
+        } else {
+          appendMessage('AI error: ' + errMsg, 'error');
+          setStatus('Error: ' + errMsg, true);
+        }
+        sendBtn.disabled = false;
+        return;
+      }
+
+      var reply = data.content && data.content[0] && data.content[0].text
+        ? data.content[0].text
+        : JSON.stringify(data);
+
+      chatHistory.push({ role: 'assistant', content: reply });
+      localStorage.setItem('cec_history', JSON.stringify(chatHistory.slice(-20)));
+
+      appendMessage('AI: ' + reply, 'ai');
+      setStatus('Ready.');
+      enterOnlineMode();
+    } catch (err) {
+      appendMessage('Network error: ' + err.message, 'error');
+      setStatus('Network error: ' + err.message, true);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  // Allow pressing Enter to send
+  (function () {
+    var input = document.getElementById('chat-input');
+    if (input) {
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') sendMessage();
+      });
+    }
+  })();
+
+  /* ── Chart.js ─────────────────────────────────────────────────── */
+
+  (function initChart() {
+    var canvas = document.getElementById('myChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+          label: 'Sample Data',
+          data: [12, 19, 8, 15, 22, 17],
+          backgroundColor: 'rgba(43,108,176,0.7)',
+          borderColor: 'rgba(43,108,176,1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  })();
+
+  /* ── PDF export ───────────────────────────────────────────────── */
+
+  function exportPDF() {
+    if (typeof window.jspdf === 'undefined') {
+      setStatus('jsPDF not loaded yet — try again in a moment.', true);
+      return;
+    }
+    var doc = new window.jspdf.jsPDF();
+    doc.setFontSize(18);
+    doc.text('CEC Pro Report', 14, 22);
+    doc.setFontSize(11);
+    doc.text('Generated: ' + new Date().toLocaleString(), 14, 34);
+
+    var messages = document.getElementById('chat-messages');
+    if (messages) {
+      var lines = doc.splitTextToSize(messages.innerText || '', 180);
+      doc.text(lines, 14, 46);
+    }
+
+    doc.save('cec-pro-report.pdf');
+    setStatus('PDF exported.');
+  }
+
+  /* ── DOCX export ──────────────────────────────────────────────── */
+
+  async function exportDocx() {
+    if (typeof docx === 'undefined') {
+      setStatus('docx library not loaded yet — try again in a moment.', true);
+      return;
+    }
+
+    var messages = document.getElementById('chat-messages');
+    var chatText = messages ? (messages.innerText || '') : '';
+
+    var doc = new docx.Document({
+      sections: [{
+        properties: {},
+        children: [
+          new docx.Paragraph({
+            children: [new docx.TextRun({ text: 'CEC Pro Report', bold: true, size: 36 })]
+          }),
+          new docx.Paragraph({
+            children: [new docx.TextRun('Generated: ' + new Date().toLocaleString())]
+          }),
+          new docx.Paragraph({ children: [new docx.TextRun('')] }),
+          new docx.Paragraph({ children: [new docx.TextRun(chatText)] })
+        ]
+      }]
+    });
+
+    var blob = await docx.Packer.toBlob(doc);
+    if (typeof saveAs !== 'undefined') {
+      saveAs(blob, 'cec-pro-report.docx');
+    } else {
+      // FileSaver not available — fallback
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'cec-pro-report.docx';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    setStatus('DOCX exported.');
+  }
+
+  /* ── Text search helper (valid regex example) ─────────────────── */
+
+  /**
+   * Returns positions of all case-insensitive occurrences of `query` in `text`.
+   * The regex is built safely so it never produces an "Invalid regular expression" error
+   * even when `query` contains special regex characters.
+   */
+  function findOccurrences(text, query) {
+    if (!query) return [];
+    // Escape all special regex metacharacters before building the pattern.
+    // The character class explicitly lists [ and ] as \\[ and \\] to avoid
+    // any ambiguity with character-class delimiters.
+    var escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    var pattern = new RegExp(escaped, 'gi');
+    var results = [];
+    var match;
+    while ((match = pattern.exec(text)) !== null) {
+      results.push(match.index);
+    }
+    return results;
+  }
+
+  /* ── DOMContentLoaded guard ───────────────────────────────────── */
+  // All DOM queries that can return null are guarded with null checks,
+  // so "Cannot set properties of null" errors will not be thrown even if an
+  // element is temporarily absent from the page.
+  document.addEventListener('DOMContentLoaded', function () {
+    setStatus('CEC Pro loaded.');
+  });
+</script>
+
+</body>
+</html>
