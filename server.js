@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 const connectDB = require('./db');
 const restaurantRoutes = require('./routes/restaurants');
 const orderRoutes = require('./routes/orders');
@@ -10,6 +11,15 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Rate limiting for API routes
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
 
 // Serve static files
 app.use(express.static(path.join(__dirname)));
