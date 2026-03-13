@@ -26,6 +26,10 @@ router.get('/:id', async (req, res) => {
 
 // Create a restaurant
 router.post('/', async (req, res) => {
+  const { name, cuisine } = req.body;
+  if (!name || !cuisine) {
+    return res.status(400).json({ error: 'name and cuisine are required' });
+  }
   try {
     const restaurant = await Restaurant.create(req.body);
     res.status(201).json(restaurant);

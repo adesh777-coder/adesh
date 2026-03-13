@@ -1,7 +1,7 @@
 {
-  "name": "adesh",
+  "name": "foodhub",
   "version": "1.0.0",
-  "description": "",
+  "description": "FoodHub - A food delivery web application backed by MongoDB",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
